@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">RemoteControllerCar</string>
+    <string name="action_settings">Settings</string>
+
+    <string name="throttle_pedal">Run</string>
+    <string name="break_pedal">Break</string>
+    <string name="reverse_pedal">Reverse</string>
+</resources>
