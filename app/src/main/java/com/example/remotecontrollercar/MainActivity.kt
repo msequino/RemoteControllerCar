@@ -15,14 +15,15 @@ import android.hardware.SensorManager
 import android.os.Bundle
 import android.os.Handler
 import android.support.v7.app.AppCompatActivity
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
-import com.example.remotecontrollercar.engine.BluetoothEngine
+import com.example.remotecontrollercar.engine.DrivingCommand
 import com.example.remotecontrollercar.engine.IEngine
-import com.example.remotecontrollercar.engine.bluetooth.BluetoothService
+import com.example.remotecontrollercar.engine.bluetooth.BluetoothEngine
 import com.example.remotecontrollercar.util.RepeatListener
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
@@ -30,6 +31,7 @@ import java.lang.Exception
 
 class MainActivity : AppCompatActivity() , SensorEventListener {
 
+    private val TAG = "MainActivity"
     private val DEVICE_NAME = "X9 PLUS"
 
     private val REQUEST_ENABLE_BT: Int = 1
@@ -93,9 +95,9 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
 
     override fun onSensorChanged(event: SensorEvent?) {
         if (event != null) {
-            //println("sensor changed ${event.values[1]} ${event.values[0]}")
             y = event.values[1]
             x = event.values[0]
+            //engine.steer(x, y)
         }
     }
 
@@ -122,7 +124,7 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
                     val device: BluetoothDevice =
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
 
-                    initializeEngine(device)
+                    initializeBluetoothEngine(device)
 
                 }
             }
@@ -135,7 +137,7 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         try {
             unregisterReceiver(receiver)
         } catch (ex: Exception) {
-            println("cannot deregister receiver")
+            Log.e(TAG,"cannot deregister receiver")
         }
     }
 
@@ -158,7 +160,7 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
     fun tryToConnectToPairedDevices() {
         // looking for already known devices
         val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
-        val connected : Boolean = pairedDevices.orEmpty().map { device -> initializeEngine(device) }.any { res -> res }
+        val connected : Boolean = pairedDevices.orEmpty().map { device -> initializeBluetoothEngine(device) }.any { res -> res }
         if(!connected) {
             // Register for broadcasts when a device is discovered.
             registerReceiver(receiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
@@ -166,12 +168,12 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
 
     }
 
-    fun initializeEngine(device: BluetoothDevice) : Boolean {
-        println("try to connecting to ${device.name} ${device.address}")
+    fun initializeBluetoothEngine(device: BluetoothDevice) : Boolean {
+        Log.i(TAG,"try to connecting to ${device.name} ${device.address}")
         if(DEVICE_NAME.contentEquals(device.name)) {
-            println("connected to ${device.name}")
-            initializeView(BluetoothEngine(BluetoothService(device, Handler() { it ->
-                println("return $it")
+            Log.d(TAG,"connected to ${device.name}")
+            initializeView(DrivingCommand(BluetoothEngine(device, Handler() { it ->
+                Log.d(TAG, "return $it")
                 Toast.makeText(applicationContext, it.obj.toString(), Toast.LENGTH_SHORT).show()
                 true
             })))
@@ -181,30 +183,27 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
     }
 
 
-    fun initializeView(engine: IEngine) : Unit {
-        throttlePedal.setOnTouchListener(onThrottlePedalClicked(engine))
-        reversePedal.setOnTouchListener(onReversePedalClicked(engine))
-        breakPedal.setOnTouchListener(onBreakPedalClicked(engine))
+    fun initializeView(drivingCommand: DrivingCommand) : Unit {
+        throttlePedal.setOnTouchListener(onThrottlePedalClicked(drivingCommand))
+        reversePedal.setOnTouchListener(onReversePedalClicked(drivingCommand))
+        breakPedal.setOnTouchListener(onBreakPedalClicked(drivingCommand))
     }
 
-    fun onThrottlePedalClicked(engine: IEngine): View.OnTouchListener? {
+    fun onThrottlePedalClicked(engine: DrivingCommand): View.OnTouchListener? {
         return RepeatListener(0, 250,
             View.OnClickListener {
-                println("accelerating $x $y")
                 engine.accelerate(x, y)
             })
     }
-    fun onReversePedalClicked(engine: IEngine): View.OnTouchListener? {
+    fun onReversePedalClicked(engine: DrivingCommand): View.OnTouchListener? {
         return RepeatListener(0, 250,
             View.OnClickListener {
-                println("reversing $x $y")
                 engine.reverse(x, y)
             })
     }
-    fun onBreakPedalClicked(engine: IEngine): View.OnTouchListener? {
+    fun onBreakPedalClicked(engine: DrivingCommand): View.OnTouchListener? {
         return RepeatListener(0, 250,
             View.OnClickListener {
-                println("slowing down")
                 engine.slowDown()
             })
     }

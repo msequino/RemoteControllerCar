@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.util.Log
 import com.example.remotecontrollercar.MessagePayload
+import com.example.remotecontrollercar.engine.IEngine
 import java.io.IOException
 import java.io.OutputStream
 import java.lang.Exception
@@ -18,7 +19,7 @@ import java.util.*
 const val MESSAGE_WRITE: Int = 1
 const val MESSAGE_TOAST: Int = 2
 
-class BluetoothService(device: BluetoothDevice, private val handler: Handler) : Thread() {
+class BluetoothEngine(device: BluetoothDevice, private val handler: Handler) : Thread(), IEngine {
     val uuid : UUID = UUID.fromString("3f9af32c-548f-4152-87b9-46ea997b22b5")
 
     private val thread : ConnectThread = ConnectThread(device)
@@ -34,7 +35,7 @@ class BluetoothService(device: BluetoothDevice, private val handler: Handler) : 
 
         }
     }
-    fun write(message: MessagePayload) {
+    override fun send(message: MessagePayload) {
 
         val _message : String = message.toString()
         thread.write(_message)

@@ -18,6 +18,11 @@ class SlowDown() : Action {
         return "type: 'SlowDown'"
     }
 }
+class Steer(val x: Float, val y: Float) : Action {
+    override fun toString(): String {
+        return "type: 'Steer', x: $x, y: $y"
+    }
+}
 
 class MessagePayload(val action: Action, val ts: String) : Serializable {
 
