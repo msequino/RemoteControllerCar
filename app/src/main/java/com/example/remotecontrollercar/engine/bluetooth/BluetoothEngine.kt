@@ -14,7 +14,7 @@ import java.io.IOException
 import java.util.*
 
 // FIXME use thread/coroutine apis
-class BluetoothEngine(val device: BluetoothDevice, private val mHandler: Handler) : IEngine, Thread() {
+class BluetoothEngine(val device: BluetoothDevice) : IEngine, Thread() {
     val uuid : UUID = UUID.fromString("3f9af32c-548f-4152-87b9-46ea997b22b5")
     private val TAG = "BluetoothEngine"
 
