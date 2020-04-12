@@ -82,7 +82,6 @@ class RepeatListener(
                 handler.postDelayed(handlerRunnable, initialRepeatDelay.toLong())
                 touchedView = view
                 touchedView!!.isPressed = true
-                clickListener.onClick(view)
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {

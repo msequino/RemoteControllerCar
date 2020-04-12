@@ -7,7 +7,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.ActivityInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -22,17 +21,15 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import com.example.remotecontrollercar.engine.DrivingCommand
-import com.example.remotecontrollercar.engine.IEngine
 import com.example.remotecontrollercar.engine.bluetooth.BluetoothEngine
+import com.example.remotecontrollercar.util.Constants.Companion.DEVICE_NAME
 import com.example.remotecontrollercar.util.RepeatListener
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
-import java.lang.Exception
 
 class MainActivity : AppCompatActivity() , SensorEventListener {
 
     private val TAG = "MainActivity"
-    private val DEVICE_NAME = "X9 PLUS"
 
     private val REQUEST_ENABLE_BT: Int = 1
     private val DISCOVER_BLUETOOTH_DEVICE: Int = 2
@@ -44,7 +41,8 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
     private var y : Float = 0F
 
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
-    private val engine : IEngine ?= null
+
+    private var drivingCommand : DrivingCommand? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,9 +53,6 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         mSensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         // focus in accelerometer
         mAccelerometer = mSensorManager!!.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        // setup the window
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
 
         if (bluetoothAdapter == null) {
@@ -65,12 +60,12 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         }
 
         if (bluetoothAdapter?.isEnabled == false) {
+            // FIXME why cannot connect
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
         } else {
             tryToConnectToPairedDevices()
         }
-
 
     }
 
@@ -86,6 +81,19 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
             R.id.action_settings -> true
+            R.id.action_connect -> {
+                if(drivingCommand == null) {
+                    tryToConnectToPairedDevices()
+                    return true
+                } else {
+                    return false
+                }
+            }
+            R.id.action_disconnect -> { if(drivingCommand != null) {
+                drivingCommand!!.stop();
+                drivingCommand = null
+                return true
+            } else return false }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -97,7 +105,9 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         if (event != null) {
             y = event.values[1]
             x = event.values[0]
-            //engine.steer(x, y)
+
+            if(drivingCommand != null)
+                drivingCommand!!.steer(x, y)
         }
     }
 
@@ -157,7 +167,7 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
     }
 
 
-    fun tryToConnectToPairedDevices() {
+    fun tryToConnectToPairedDevices() : Boolean {
         // looking for already known devices
         val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
         val connected : Boolean = pairedDevices.orEmpty().map { device -> initializeBluetoothEngine(device) }.any { res -> res }
@@ -165,16 +175,17 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
             // Register for broadcasts when a device is discovered.
             registerReceiver(receiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
         }
+        return connected
 
     }
 
     fun initializeBluetoothEngine(device: BluetoothDevice) : Boolean {
-        Log.i(TAG,"try to connecting to ${device.name} ${device.address}")
+        Log.i(TAG,"initialize bluetooth engine -> ${device.name} ${device.address}")
         if(DEVICE_NAME.contentEquals(device.name)) {
-            Log.d(TAG,"connected to ${device.name}")
+            Log.d(TAG,"found car ${device.name}")
             initializeView(DrivingCommand(BluetoothEngine(device, Handler() { it ->
                 Log.d(TAG, "return $it")
-                Toast.makeText(applicationContext, it.obj.toString(), Toast.LENGTH_SHORT).show()
+                Toast.makeText(applicationContext, "closed", Toast.LENGTH_SHORT).show()
                 true
             })))
             return true
@@ -183,10 +194,17 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
     }
 
 
-    fun initializeView(drivingCommand: DrivingCommand) : Unit {
-        throttlePedal.setOnTouchListener(onThrottlePedalClicked(drivingCommand))
-        reversePedal.setOnTouchListener(onReversePedalClicked(drivingCommand))
-        breakPedal.setOnTouchListener(onBreakPedalClicked(drivingCommand))
+    fun initializeView(drivingCommand: DrivingCommand) {
+        Log.d(TAG, "initialize view $drivingCommand")
+        if(this.drivingCommand == null) {
+            this.drivingCommand = drivingCommand
+            if(drivingCommand.start()) {
+                throttlePedal.setOnTouchListener(onThrottlePedalClicked(drivingCommand))
+                reversePedal.setOnTouchListener(onReversePedalClicked(drivingCommand))
+                breakPedal.setOnTouchListener(onBreakPedalClicked(drivingCommand))
+            }
+        }
+
     }
 
     fun onThrottlePedalClicked(engine: DrivingCommand): View.OnTouchListener? {
