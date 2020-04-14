@@ -11,32 +11,32 @@ class DrivingCommand(val client: IEngine) {
     private var lastX : Float? = 0F
     private var lastY : Float? = 0F
 
-    fun start() : Boolean {
+    suspend fun start() {
         Log.d(TAG,"burning up the motor")
         return client.turnOn()
     }
-    fun accelerate(x: Float, y: Float) {
+    suspend fun accelerate(x: Float, y: Float) {
         Log.d(TAG,"accelerating $x $y")
         client.send(MessagePayload(Throttle(x, y), DateTimeFormatter.ISO_INSTANT.format(Instant.now())))
     }
 
-    fun reverse(x: Float, y: Float) {
+    suspend fun reverse(x: Float, y: Float) {
         Log.d(TAG,"reversing $x $y")
         client.send(MessagePayload(Reverse(x, y), DateTimeFormatter.ISO_INSTANT.format(Instant.now())))
     }
 
-    fun slowDown() {
+    suspend fun slowDown() {
         Log.d(TAG,"slowing down")
         client.send(MessagePayload(SlowDown(), DateTimeFormatter.ISO_INSTANT.format(Instant.now())))
     }
 
-    fun steer(x: Float, y: Float) {
+    suspend fun steer(x: Float, y: Float) {
         if(Math.abs(lastX?.minus(x)!!) > 0.05F || Math.abs(lastY?.minus(y)!!) > 0.05F) {
             Log.d(TAG,"steering $x $y")
             client.send(MessagePayload(Steer(x, y), DateTimeFormatter.ISO_INSTANT.format(Instant.now())))
         }
     }
-    fun stop() {
+    suspend fun stop() {
         Log.d(TAG,"closingo into box")
         client.close()
     }

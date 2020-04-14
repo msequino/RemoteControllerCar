@@ -12,7 +12,6 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
-import android.os.Handler
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.view.Menu
@@ -26,6 +25,8 @@ import com.example.remotecontrollercar.util.Constants.Companion.DEVICE_NAME
 import com.example.remotecontrollercar.util.RepeatListener
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
 
 class MainActivity : AppCompatActivity() , SensorEventListener {
 
@@ -90,7 +91,7 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
                 }
             }
             R.id.action_disconnect -> { if(drivingCommand != null) {
-                drivingCommand!!.stop();
+                GlobalScope.async { drivingCommand!!.stop() }
                 drivingCommand = null
                 return true
             } else return false }
@@ -107,7 +108,7 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
             x = event.values[0]
 
             if(drivingCommand != null)
-                drivingCommand!!.steer(x, y)
+                GlobalScope.async { drivingCommand!!.steer(x, y) }
         }
     }
 
@@ -183,11 +184,7 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         Log.i(TAG,"initialize bluetooth engine -> ${device.name} ${device.address}")
         if(DEVICE_NAME.contentEquals(device.name)) {
             Log.d(TAG,"found car ${device.name}")
-            initializeView(DrivingCommand(BluetoothEngine(device, Handler() { it ->
-                Log.d(TAG, "return $it")
-                Toast.makeText(applicationContext, "closed", Toast.LENGTH_SHORT).show()
-                true
-            })))
+            initializeView(DrivingCommand(BluetoothEngine(device)))
             return true
         }
         return false
@@ -198,31 +195,31 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         Log.d(TAG, "initialize view $drivingCommand")
         if(this.drivingCommand == null) {
             this.drivingCommand = drivingCommand
-            if(drivingCommand.start()) {
-                throttlePedal.setOnTouchListener(onThrottlePedalClicked(drivingCommand))
-                reversePedal.setOnTouchListener(onReversePedalClicked(drivingCommand))
-                breakPedal.setOnTouchListener(onBreakPedalClicked(drivingCommand))
+            GlobalScope.async {
+                drivingCommand.start()
             }
+            throttlePedal.setOnTouchListener(onThrottlePedalClicked(drivingCommand))
+            reversePedal.setOnTouchListener(onReversePedalClicked(drivingCommand))
+            breakPedal.setOnTouchListener(onBreakPedalClicked(drivingCommand))
         }
-
     }
 
     fun onThrottlePedalClicked(engine: DrivingCommand): View.OnTouchListener? {
         return RepeatListener(0, 250,
             View.OnClickListener {
-                engine.accelerate(x, y)
+                GlobalScope.async { engine.accelerate(x, y) }
             })
     }
     fun onReversePedalClicked(engine: DrivingCommand): View.OnTouchListener? {
         return RepeatListener(0, 250,
             View.OnClickListener {
-                engine.reverse(x, y)
+                GlobalScope.async { engine.reverse(x, y) }
             })
     }
     fun onBreakPedalClicked(engine: DrivingCommand): View.OnTouchListener? {
         return RepeatListener(0, 250,
             View.OnClickListener {
-                engine.slowDown()
+                GlobalScope.async { engine.slowDown() }
             })
     }
 }

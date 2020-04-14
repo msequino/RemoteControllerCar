@@ -4,15 +4,15 @@ import com.example.remotecontrollercar.MessagePayload
 import com.example.remotecontrollercar.engine.IEngine
 
 class WifiEngine : IEngine {
-    override fun turnOn(): Boolean {
+    override suspend fun turnOn() {
         TODO("Not yet implemented")
     }
 
-    override fun send(messagePayload: MessagePayload) {
+    override suspend fun send(messagePayload: MessagePayload) {
         TODO("Not yet implemented")
     }
 
-    override fun close() {
+    override suspend fun close() {
         TODO("Not yet implemented")
     }
 }

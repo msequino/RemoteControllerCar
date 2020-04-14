@@ -3,66 +3,70 @@ package com.example.remotecontrollercar.engine.bluetooth
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
-import android.os.Handler
 import android.util.Log
 import com.example.remotecontrollercar.MessagePayload
 import com.example.remotecontrollercar.engine.IEngine
 import com.example.remotecontrollercar.util.Constants.Companion.CLOSE_CONNECTION
 import com.example.remotecontrollercar.util.Constants.Companion.STATE_CONNECTED
 import com.example.remotecontrollercar.util.Constants.Companion.STATE_LISTEN
+import kotlinx.coroutines.*
 import java.io.IOException
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 
-// FIXME use thread/coroutine apis
-class BluetoothEngine(val device: BluetoothDevice) : IEngine, Thread() {
+class BluetoothEngine(val device: BluetoothDevice) : IEngine {
     val uuid : UUID = UUID.fromString("3f9af32c-548f-4152-87b9-46ea997b22b5")
     private val TAG = "BluetoothEngine"
 
     private var mSocket: BluetoothSocket? = null
-    private var mState: Int =  STATE_LISTEN
+    private var mState: AtomicInteger =  AtomicInteger(STATE_LISTEN)
 
-    override fun turnOn() : Boolean {
+    private suspend fun scope(f: () -> Unit): Job {
+        return GlobalScope.launch { withContext(Dispatchers.IO) { f } }
+    }
+
+    override suspend fun turnOn() {
         Log.d(TAG, "bluetooth engine start")
-        BluetoothAdapter.getDefaultAdapter().cancelDiscovery()
-        synchronized(this) {
-            mSocket = device.createRfcommSocketToServiceRecord(uuid)
-            if(mState == STATE_LISTEN) {
+        scope {
+            BluetoothAdapter.getDefaultAdapter().cancelDiscovery()
+            if(mState.get() == STATE_LISTEN) {
+                mSocket = device.createRfcommSocketToServiceRecord(uuid)
                 try {
-                    mSocket?.connect()
-                    mState = STATE_CONNECTED
+                    mSocket!!.connect()
+                    mState.set(STATE_CONNECTED)
                 } catch (ex: IOException) {
-                    mState = STATE_LISTEN
+                    Log.e(TAG, "cannot turn on the engine")
                 }
             }
         }
-        return mState == STATE_CONNECTED
 
     }
 
-    override fun send(messagePayload: MessagePayload) {
+    override suspend fun send(messagePayload: MessagePayload) {
         Log.d(TAG, "bluetooth engine send")
-        // Synchronize a copy of the ConnectedThread
-        synchronized(this) {
-            if (mState != STATE_CONNECTED) return
+        scope {
+            // Get synchronized state
+            if (mState.get() == STATE_CONNECTED) {
+                // Perform the write unsynchronized
+                mSocket!!.outputStream.write(messagePayload.toString().toByteArray())
+            }
         }
-        // Perform the write unsynchronized
-        mSocket!!.outputStream.write(messagePayload.toString().toByteArray())
     }
 
-    override fun close() {
+    override suspend fun close() {
         Log.d(TAG, "bluetooth engine close")
-        synchronized(this) {
-            if (mState != STATE_CONNECTED) return
-        }
-        mSocket!!.outputStream.write(CLOSE_CONNECTION.toByteArray())
-        synchronized(this) {
-            try {
-                mSocket?.close()
-                mState = STATE_LISTEN
-            } catch (ex: IOException) {
-                Log.e(TAG, "cannot close socket")
-            }
+        scope {
+            if (mState.get() == STATE_CONNECTED) {
+                mSocket!!.outputStream.write(CLOSE_CONNECTION.toByteArray())
 
+                try {
+                    mSocket!!.close()
+                    mState.set(STATE_LISTEN)
+                } catch (ex: IOException) {
+                    Log.e(TAG, "cannot close socket")
+                }
+
+            }
         }
     }
 }
