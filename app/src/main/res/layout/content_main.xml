@@ -8,18 +8,35 @@
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         tools:showIn="@layout/activity_main"
         tools:context=".MainActivity" android:visibility="visible" android:orientation="horizontal"
-        android:layout_marginTop="300dp" app:layout_constraintWidth_max="50dp" app:layout_constraintWidth_percent="10"
+        android:layout_marginTop="100dp" app:layout_constraintWidth_max="50dp" app:layout_constraintWidth_percent="10"
 >
-    <ImageButton
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" app:srcCompat="@mipmap/pedal" android:id="@+id/throttlePedal"
-            android:layout_weight="1" android:contentDescription="@string/throttle_pedal"/>
-    <ImageButton
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" app:srcCompat="@mipmap/pedal" android:id="@+id/breakPedal"
-            android:layout_weight="1" android:contentDescription="@string/break_pedal"/>
-    <ImageButton
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" app:srcCompat="@mipmap/pedal" android:id="@+id/reversePedal"
-            android:layout_weight="1" android:contentDescription="@string/reverse_pedal"/>
+
+    <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" android:layout_weight="1">
+        <ImageButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" app:srcCompat="@mipmap/pedal" android:id="@+id/throttlePedal"
+                android:layout_weight="1" android:contentDescription="@string/throttle_pedal"/>
+
+        <ImageButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" app:srcCompat="@mipmap/pedal" android:id="@+id/breakPedal"
+                android:layout_weight="1" android:contentDescription="@string/break_pedal"/>
+    </LinearLayout>
+
+    <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="277dp"
+            android:layout_height="match_parent" android:layout_weight="1">
+        <Switch
+                android:textOn="@string/active_forward" android:textOff="@string/active_reverse"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:id="@+id/runForward" android:layout_marginRight="50dp"
+                android:checked="true"
+                android:translationY="@android:dimen/notification_large_icon_height"
+                android:textAllCaps="true" android:rotation="180" android:translationX="50dp"/>
+    </LinearLayout>
+
 </LinearLayout>

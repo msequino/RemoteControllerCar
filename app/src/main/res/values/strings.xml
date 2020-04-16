@@ -8,5 +8,7 @@
     <string name="throttle_pedal">Run</string>
     <string name="break_pedal">Break</string>
     <string name="reverse_pedal">Reverse</string>
+    <string name="active_forward">F</string>
+    <string name="active_reverse">R</string>
 
 </resources>

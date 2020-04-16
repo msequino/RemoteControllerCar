@@ -2,9 +2,10 @@ package com.example.remotecontrollercar.engine.wifi
 
 import com.example.remotecontrollercar.MessagePayload
 import com.example.remotecontrollercar.engine.IEngine
+import kotlinx.coroutines.Deferred
 
 class WifiEngine : IEngine {
-    override suspend fun turnOn() {
+    override suspend fun turnOn() : Deferred<Boolean> {
         TODO("Not yet implemented")
     }
 

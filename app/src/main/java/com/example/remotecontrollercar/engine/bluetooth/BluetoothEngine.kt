@@ -22,24 +22,29 @@ class BluetoothEngine(val device: BluetoothDevice) : IEngine {
     private var mState: AtomicInteger =  AtomicInteger(STATE_LISTEN)
 
     private suspend fun scope(f: () -> Unit): Job {
-        return GlobalScope.launch { withContext(Dispatchers.IO) { f } }
+        return GlobalScope.launch { withContext(Dispatchers.IO) { f() } }
     }
 
-    override suspend fun turnOn() {
+    override suspend fun turnOn(): Deferred<Boolean> {
         Log.d(TAG, "bluetooth engine start")
-        scope {
-            BluetoothAdapter.getDefaultAdapter().cancelDiscovery()
-            if(mState.get() == STATE_LISTEN) {
-                mSocket = device.createRfcommSocketToServiceRecord(uuid)
-                try {
-                    mSocket!!.connect()
-                    mState.set(STATE_CONNECTED)
-                } catch (ex: IOException) {
-                    Log.e(TAG, "cannot turn on the engine")
+        return GlobalScope.async {
+            withContext(Dispatchers.IO) {
+                BluetoothAdapter.getDefaultAdapter().cancelDiscovery()
+                synchronized(this) {
+                    if (mState.get() == STATE_LISTEN) {
+                        mSocket = device.createRfcommSocketToServiceRecord(uuid)
+                        try {
+                            mSocket!!.connect()
+                            mState.set(STATE_CONNECTED)
+                            return@withContext true
+                        } catch (ex: IOException) {
+                            Log.e(TAG, "cannot turn on the engine")
+                        }
+                    }
                 }
+                false
             }
         }
-
     }
 
     override suspend fun send(messagePayload: MessagePayload) {
@@ -57,9 +62,9 @@ class BluetoothEngine(val device: BluetoothDevice) : IEngine {
         Log.d(TAG, "bluetooth engine close")
         scope {
             if (mState.get() == STATE_CONNECTED) {
-                mSocket!!.outputStream.write(CLOSE_CONNECTION.toByteArray())
 
                 try {
+                    mSocket!!.outputStream.write(CLOSE_CONNECTION.toByteArray())
                     mSocket!!.close()
                     mState.set(STATE_LISTEN)
                 } catch (ex: IOException) {

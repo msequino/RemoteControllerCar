@@ -12,6 +12,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.os.Handler
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.view.Menu
@@ -61,7 +62,6 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         }
 
         if (bluetoothAdapter?.isEnabled == false) {
-            // FIXME why cannot connect
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
         } else {
@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
             x = event.values[0]
 
             if(drivingCommand != null)
-                GlobalScope.async { drivingCommand!!.steer(x, y) }
+                drivingCommand!!.steer(x, y)
         }
     }
 
@@ -142,6 +142,12 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         }
     }
 
+    private val mEngineHandler: Handler = Handler({ msg ->
+        Log.d(TAG, "*****received message ${msg.data}");
+        Toast.makeText(applicationContext, "*****received message ${msg.data.get("status")}", Toast.LENGTH_LONG).show();
+        true
+    })
+
     override fun onDestroy() {
         super.onDestroy()
 
@@ -152,19 +158,16 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_ENABLE_BT) {
             if (resultCode == Activity.RESULT_OK) {
                 tryToConnectToPairedDevices()
                 return
             }
-        } else if (requestCode == DISCOVER_BLUETOOTH_DEVICE) {
-            if (resultCode == Activity.RESULT_OK) {
-                return
-            }
+        } else {
+            Toast.makeText(applicationContext, "cannot use application", Toast.LENGTH_LONG).show();
         }
 
-        Toast.makeText(applicationContext, "cannot use application", Toast.LENGTH_LONG).show();
     }
 
 
@@ -184,7 +187,7 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         Log.i(TAG,"initialize bluetooth engine -> ${device.name} ${device.address}")
         if(DEVICE_NAME.contentEquals(device.name)) {
             Log.d(TAG,"found car ${device.name}")
-            initializeView(DrivingCommand(BluetoothEngine(device)))
+            initializeView(DrivingCommand(BluetoothEngine(device), mEngineHandler))
             return true
         }
         return false
@@ -195,31 +198,42 @@ class MainActivity : AppCompatActivity() , SensorEventListener {
         Log.d(TAG, "initialize view $drivingCommand")
         if(this.drivingCommand == null) {
             this.drivingCommand = drivingCommand
-            GlobalScope.async {
-                drivingCommand.start()
+            drivingCommand.start()
+            if(runForward.isChecked) {
+                throttlePedal.setOnTouchListener(onThrottlePedalClicked(drivingCommand))
+            } else {
+                throttlePedal.setOnTouchListener(onReversePedalClicked(drivingCommand))
             }
-            throttlePedal.setOnTouchListener(onThrottlePedalClicked(drivingCommand))
-            reversePedal.setOnTouchListener(onReversePedalClicked(drivingCommand))
             breakPedal.setOnTouchListener(onBreakPedalClicked(drivingCommand))
+            runForward.setOnCheckedChangeListener { view, isChecked -> onRunForwardSwitchTouched(drivingCommand, isChecked) }
+            Toast.makeText(applicationContext, "cannot connect to car", Toast.LENGTH_LONG).show();
         }
     }
 
     fun onThrottlePedalClicked(engine: DrivingCommand): View.OnTouchListener? {
         return RepeatListener(0, 250,
             View.OnClickListener {
-                GlobalScope.async { engine.accelerate(x, y) }
+                engine.accelerate(x, y)
             })
     }
     fun onReversePedalClicked(engine: DrivingCommand): View.OnTouchListener? {
         return RepeatListener(0, 250,
             View.OnClickListener {
-                GlobalScope.async { engine.reverse(x, y) }
+                engine.reverse(x, y)
             })
     }
     fun onBreakPedalClicked(engine: DrivingCommand): View.OnTouchListener? {
         return RepeatListener(0, 250,
             View.OnClickListener {
-                GlobalScope.async { engine.slowDown() }
+                engine.slowDown()
             })
+    }
+    fun onRunForwardSwitchTouched(drivingCommand: DrivingCommand, isChecked: Boolean): Boolean {
+        if(isChecked) {
+            throttlePedal.setOnTouchListener(onThrottlePedalClicked(drivingCommand))
+        } else {
+            throttlePedal.setOnTouchListener(onReversePedalClicked(drivingCommand))
+        }
+        return isChecked
     }
 }
